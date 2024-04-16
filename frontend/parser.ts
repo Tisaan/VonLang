@@ -125,90 +125,10 @@ export default class Parser {
 				return this.parse_var_declaration(check, call);
 			case TokenType.Func:
 				return this.parse_fn_declaration(check, call);
-			case TokenType.IfConditional:
-				return this.parse_if_else_expr(check, call);
-			case TokenType.WhileLoop:
-				return this.parse_while_expr(check, call);
 			default:
 				return this.parse_expr(check, call);
 		}
 	}
-
-  parse_while_expr(check: typeof Check, call: CallerStmt): Stmt {
-    throw new Error("Method not implemented.");
-  }
-
-  parse_if_else_expr(check: typeof Check, call: CallerStmt): Stmt {
-	let check_if = false//verif que un if a ete ecrit avant un else/else if
-	const condition = Array<Expr|Expr[]>()
-	const body = new Array<Expr>()
-	while ((this.at().value == "if" && !check_if)|| (this.at().value == "else" && this.next().value == "if" && check_if)){//parse if and if else
-    	this.eat()//eat if or else(else if)
-		if (this.at().value == "if"){
-			this.eat()
-		}
-		while (this.at().value == "{" && this.next().value != "}" && this.eat()){
-			condition.push(this.parse_object_expr(check, call))
-		}
-		if (this.at().value == "{" && this.next().value == "}"){
-			throw "If Expr should contain a condition"
-		}
-		this.expect(
-			TokenType.CloseBrace,
-			"If condition should be between braces"
-		)
-		this.expect(
-			TokenType.OpenParen,
-			"Code statement should be between parenthese"
-		)
-		while (this.at().value != ")"){//a check plus tard si les body sont vide
-			body.push(this.parse_expr(check, call))
-		}
-		this.eat()
-		check_if = true
-		// eat le else si les b
-	}
-	if (this.at().value == "if" && check_if){
-		/**
-		if{thing}(
-			truc
-		)
-		if {truc}(
-			thing
-		)
-		 */
-		const value = {
-			kind: "IfExpr",
-			body,
-			condition,
-			other: []
-		}as IfExpr
-		return value
-	}
-	if ((this.at().value == "else" && this.at().value == "if") && !check_if){
-		throw "Can't write an else if statement without if statement"
-	}
-	const other = Array<Expr>()
-	if (this.at().value == "else" && check_if && this.eat()){
-		this.expect(
-			TokenType.OpenParen,
-			"Else statement should countains a body and no condition"
-		)
-		while (this.at().value != ")"){
-			other.push(this.parse_expr(check, call))
-		}
-		this.eat()
-	} else if (this.at().value == "else" && !check_if){
-		throw "Can't write an else statement without if statement"
-	}
-	const object = {
-		kind: "IfExpr",
-		condition,
-		body,
-		other
-	} as IfExpr
-	return object
-}
 
 	parse_raise_expr(check: typeof Check, call: CallerStmt): Stmt {
 		this.eat()// eat raise
@@ -319,9 +239,30 @@ export default class Parser {
 		
 		return fn;
 	}
+	
+	private parse_return(check: typeof Check, call: CallerStmt): Expr {
+		if (
+			this.at().value == "return" &&
+			check.return[1] === true &&
+			check.return[0] === true){
+			check.del = false
+			check.return[1] = false
+			const value = {
+				kind: "ReturnExpr",
+				Value: this.parse_expr(check, call)
+			} as ReturnExpr
+			
+			return value
+		} else if (check.return[0] === false){
+			console.error("can't return outside a function")
+			Deno.exit()
+		} else {
+			console.error("Can't return in", )
+			Deno.exit()
+		}
+	}
 
-	// LET IDENT;
-	// ( LET | CONST ) IDENT = EXPR;
+	// ( ? | ! ) IDENT = EXPR;
 	parse_var_declaration(check: typeof Check, call: CallerStmt): Stmt {
 		const isConstant = this.eat().type == TokenType.ConstantVariable;
 		const identifier = this.expect(
@@ -358,34 +299,7 @@ export default class Parser {
 		
 		return declaration;
 	}
-
-	// Handle expressions
-	private parse_expr(check: typeof Check, call: CallerStmt): Expr {
-		return this.parse_assignment_expr(check, call);
-	}
-
-	private parse_return(check: typeof Check, call: CallerStmt): Expr {
-		if (
-			this.at().value == "return" &&
-			check.return[1] === true &&
-			check.return[0] === true){
-			check.del = false
-			check.return[1] = false
-			const value = {
-				kind: "ReturnExpr",
-				Value: this.parse_expr(check, call)
-			} as ReturnExpr
-			
-			return value
-		} else if (check.return[0] === false){
-			console.error("can't return outside a function")
-			Deno.exit()
-		} else {
-			console.error("Can't return in", )
-			Deno.exit()
-		}
-	}
-
+	
 	parse_delete_expr(_check: typeof Check): Stmt {
 		if (this.at().value == "del" &&
 			this.next().type == TokenType.Identifier &&
@@ -399,6 +313,14 @@ export default class Parser {
 		}
   	}
 
+	
+	/**                 EXPRESSION                               */
+
+
+	private parse_expr(check: typeof Check, call: CallerStmt): Expr {
+		return this.parse_assignment_expr(check, call);
+	}
+
 	private parse_assignment_expr(check: typeof Check, call: CallerStmt): Expr {
 		let left = undefined
 		if (this.at().type == TokenType.Lambda){
@@ -406,7 +328,7 @@ export default class Parser {
 		} else {
 			check.del = false
 			check.return[1] = false
-			left = this.parse_object_expr(check, call)
+			left = this.parse_if_else_expr(check, call)
 		}
 
 		if (this.at().type == TokenType.Equals) {
@@ -417,6 +339,78 @@ export default class Parser {
 		}
 		
 		return left;
+	}
+
+	parse_if_else_expr(check: typeof Check, call: CallerStmt): Stmt {
+		let check_if = false//verif que un if a ete ecrit avant un else/else if
+		const condition = Array<Expr|Expr[]>()
+		const body = new Array<Expr>()
+		while ((this.at().value == "if" && !check_if)|| (this.at().value == "else" && this.next().value == "if" && check_if)){//parse if and if else
+			this.eat()//eat if or else(else if)
+			if (this.at().value == "if"){
+				this.eat()
+			}
+			while (this.at().value == "{" && this.next().value != "}" && this.eat()){
+				condition.push(this.parse_object_expr(check, call))
+			}
+			if (this.at().value == "{" && this.next().value == "}"){
+				throw "If Expr should contain a condition"
+			}
+			this.expect(
+				TokenType.CloseBrace,
+				"If condition should be between braces"
+			)
+			this.expect(
+				TokenType.OpenParen,
+				"Code statement should be between parenthese"
+			)
+			while (this.at().value != ")"){//a check plus tard si les body sont vide
+				body.push(this.parse_expr(check, call))
+			}
+			this.eat()
+			check_if = true
+			// eat le else si les b
+		}
+		if (this.at().value == "if" && check_if){
+			/**
+			if{thing}(
+				truc
+			)
+			if {truc}(
+				thing
+			)
+			 */
+			const value = {
+				kind: "IfExpr",
+				body,
+				condition,
+				other: []
+			}as IfExpr
+			return value
+		}
+		if ((this.at().value == "else" && this.at().value == "if") && !check_if){
+			throw "Can't write an else if statement without if statement"
+		}
+		const other = Array<Expr>()
+		if (this.at().value == "else" && check_if && this.eat()){
+			this.expect(
+				TokenType.OpenParen,
+				"Else statement should countains a body and no condition"
+			)
+			while (this.at().value != ")"){
+				other.push(this.parse_expr(check, call))
+			}
+			this.eat()
+		} else if (this.at().value == "else" && !check_if){
+			throw "Can't write an else statement without if statement"
+		}
+		const object = {
+			kind: "IfExpr",
+			condition,
+			body,
+			other
+		} as IfExpr
+		return object
 	}
 
 	private parse_object_expr(check: typeof Check, call: CallerStmt): Expr {
@@ -764,9 +758,10 @@ export default class Parser {
 				
 				return value;
 				}
-			case TokenType.Lambda:
+			case TokenType.Lambda:{
 				call.kind.push("LambdaDeclaration")
 				return this.parse_lambda_declaration(check, call);
+			}
 			case TokenType.Delete:{
 				call.kind.push("DelExpr")
 				return this.parse_delete_expr(check)
