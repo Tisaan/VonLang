@@ -138,7 +138,7 @@ const KEYWORDS: Record<string, TokenType> = {
 	if: TokenType.IfConditional,
 	else: TokenType.ElseConditional,
 	for: TokenType.ForLoop,// to implement
-	while: TokenType.WhileLoop,// to implement
+	while: TokenType.WhileLoop,
 	loop: TokenType.BreakLoop,// to implement
 	in: TokenType.InLoop,// to implement
 	break: TokenType.Break,// to implement

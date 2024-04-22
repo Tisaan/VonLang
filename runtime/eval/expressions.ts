@@ -8,6 +8,7 @@ import {
 	Identifier,
 	ObjectLiteral,
   IfExpr,
+  WhileExpr,
 } from "../../frontend/ast.ts";
 import Environment from "../environment.ts";
 import { evaluate } from "../interpreter.ts";
@@ -245,6 +246,18 @@ export function eval_conditional_expr(
 	return {value: result, type: "Bool"} as BooleanVal
 
 
+}
+
+export function eval_while_expr(
+	whilevalue: WhileExpr,
+	env: Environment
+): RuntimeVal {
+	let condition = evaluate(whilevalue.condition, env)
+	while ((condition as BooleanVal).value === true){
+		for (let value of whilevalue.body)
+			evaluate(value, env)
+		condition = evaluate(whilevalue.condition, env)
+	}return MK_NULL()
 }
 
 export function eval_ifelse_expr(

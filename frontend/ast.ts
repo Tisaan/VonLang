@@ -14,6 +14,7 @@ export type NodeType =
 	| "LambdaDeclaration"
 	// Control Flow
 	| "IfExpr"
+	| "WhileExpr"
 	// EXPRESSIONS
 	| "AssignmentExpr"
 	| "MemberExpr"
@@ -144,6 +145,12 @@ export interface IfExpr extends Expr {
 	condition: Expr[]
 	body: Expr[]
 	other: Expr[]//else
+}
+
+export interface WhileExpr extends Expr {
+	kind: "WhileExpr"
+	condition: ConditionalExpr|BooleanExpr
+	body: Expr[]
 }
 
 // LITERAL / PRIMARY EXPRESSION TYPES

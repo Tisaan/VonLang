@@ -18,6 +18,7 @@ import {
 	StringLiteral,
 	VarDeclaration,
   IfExpr,
+  WhileExpr,
 } from "../frontend/ast.ts";
 import Environment from "./environment.ts";
 import {
@@ -27,6 +28,7 @@ import {
 	eval_var_declaration,
 } from "./eval/statements.ts";
 import {
+	eval_while_expr,
 	eval_ifelse_expr,
 	eval_assignment,
 	eval_binary_expr,
@@ -83,6 +85,8 @@ export function evaluate(astNode: Stmt, env: Environment): RuntimeVal {
 			return eval_conditional_expr(astNode as ConditionalExpr, env)
 		case "IfExpr":
 			return eval_ifelse_expr(astNode as IfExpr, env)
+		case "WhileExpr":
+			return eval_while_expr(astNode as WhileExpr, env)
 		case "Program":
 			return eval_program(astNode as Program, env);
 		// Handle statements
